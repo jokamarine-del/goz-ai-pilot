@@ -2,185 +2,184 @@ import streamlit as st
 import time
 import pandas as pd
 import random
+from datetime import datetime
+from fpdf import FPDF
+import base64
 
-# --- KONFIGURACJA STRONY ---
-st.set_page_config(
-    page_title="GOZ.AI Pilot",
-    page_icon="♻️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+# --- KONFIGURACJA INFRASTRUKTURY (REALNE DANE BEYOND.PL) ---
+CLOUD_PROVIDER = "Beyond.pl Data Center 2 (Poznań)"
+AI_MODEL_VERSION = "Bielik-11B-v2.2-Instruct (NVIDIA H100 Cluster)"
+SECURITY_STD = "ANSI/TIA-942 Rated 4 (Najwyższy w UE)"
+ENERGY_SOURCE = "100% Green Energy (Odzysk ciepła)"
 
-# --- STYLING (CSS) ---
-# Ten blok sprawia, że aplikacja wygląda jak natywna appka mobilna
+st.set_page_config(page_title="GOZ.AI x Beyond.pl", page_icon="♻️", layout="centered")
+
+# --- FUNKCJE GENEROWANIA DOKUMENTÓW ---
+
+def create_pdf(product_name, uuid, repair_score, valuation):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Tło nagłówka (Eco Green)
+    pdf.set_fill_color(6, 95, 70) 
+    pdf.rect(0, 0, 210, 45, 'F')
+    
+    # Logo i Tytuł
+    pdf.set_font("Arial", 'B', 22)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 15, txt="GOZ.AI", ln=1, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 5, txt="SYSTEM PASZPORTYZACJI PRODUKTÓW (DPP)", ln=1, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 8)
+    pdf.cell(0, 5, txt=f"POWERED BY: {CLOUD_PROVIDER}", ln=1, align='C')
+    
+    # Sekcja Danych
+    pdf.ln(25)
+    pdf.set_text_color(0, 0, 0)
+    
+    # Tabela danych
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, txt=f"RAPORT: {product_name}", ln=1)
+    pdf.line(10, 75, 200, 75)
+    
+    pdf.ln(5)
+    pdf.set_font("Arial", '', 11)
+    
+    metrics = [
+        ("Identyfikator DPP:", uuid),
+        ("Data Analizy AI:", datetime.now().strftime('%Y-%m-%d %H:%M')),
+        ("Centrum Danych:", "Beyond.pl DC2 Poznań"),
+        ("Model AI:", "Bielik-11B (Polish LLM)"),
+        ("Indeks Naprawialnosci:", f"{repair_score}/10"),
+    ]
+    
+    for key, val in metrics:
+        pdf.cell(60, 8, txt=key, border=0)
+        pdf.cell(0, 8, txt=val, ln=1, border=0)
+        
+    # Stopka Ekologiczna
+    pdf.set_y(-40)
+    pdf.set_fill_color(240, 253, 244)
+    pdf.rect(0, 250, 210, 47, 'F')
+    pdf.set_y(-30)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.set_text_color(22, 101, 52)
+    pdf.cell(0, 5, txt=f"Analiza wykonana przy użyciu {ENERGY_SOURCE}", ln=1, align='C')
+    pdf.cell(0, 5, txt=f"Bezpieczeństwo danych: {SECURITY_STD}", ln=1, align='C')
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- CSS (DESIGN "INVESTOR READY") ---
 st.markdown("""
 <style>
-    .main {
-        background-color: #f8fafc;
+    .main { background-color: #f8fafc; }
+    .badge-beyond {
+        background-color: #1e3a8a; color: white; padding: 5px 10px; 
+        border-radius: 4px; font-weight: bold; font-size: 0.7em; letter-spacing: 1px;
+    }
+    .badge-eco {
+        background-color: #059669; color: white; padding: 5px 10px; 
+        border-radius: 4px; font-weight: bold; font-size: 0.7em; letter-spacing: 1px;
     }
     .stButton>button {
-        width: 100%;
-        border-radius: 12px;
-        height: 3em;
-        background-color: #10b981;
-        color: white;
-        font-weight: bold;
-        border: none;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        background-color: #1e293b; color: white; border-radius: 8px; height: 50px;
+        font-weight: 600; border: 1px solid #334155;
     }
     .stButton>button:hover {
-        background-color: #059669;
-        color: white;
+        background-color: #334155; border-color: #475569; color: white;
     }
-    .status-card {
-        padding: 20px;
-        border-radius: 15px;
-        background-color: white;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
+    .data-box {
+        background: white; padding: 20px; border-radius: 12px;
+        border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
-    .metric-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #0f172a;
-    }
-    .metric-label {
-        font-size: 0.8rem;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    h1 { color: #0f172a; }
-    h3 { color: #334155; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR (MENU) ---
-with st.sidebar:
-    st.title("♻️ GOZ.AI")
-    st.info("Wersja demonstracyjna v0.1")
-    st.markdown("---")
-    st.write("**Zalogowany jako:** Jan Kowalski")
-    st.write("**Rola:** Użytkownik Pilotażowy")
-    st.write("**Lokalizacja:** Warszawa, Mokotów")
-    st.markdown("---")
-    st.caption("Powered by Bielik AI & Streamlit")
+# --- APLIKACJA ---
 
-# --- GŁÓWNY WIDOK ---
-col1, col2 = st.columns([1, 5])
-with col1:
-    st.write("# ♻️")
-with col2:
-    st.title("GOZ.AI")
-    st.caption("Skanuj. Naprawiaj. Zyskaj.")
+# Header Inwestorski
+c1, c2 = st.columns([3, 1])
+with c1:
+    st.markdown(f'<span class="badge-beyond">INFRASTRUKTURA: BEYOND.PL</span> <span class="badge-eco">GREEN AI</span>', unsafe_allow_html=True)
+    st.title("GOZ.AI Enterprise")
+    st.caption("Suwerenna Platforma Cyrkularna zgodna z R2R")
+with c2:
+    # Placeholder na logo Beyond (lub podobne)
+    st.markdown("### 🇵🇱 AI")
 
-st.markdown("---")
+st.divider()
 
-# --- KROK 1: INPUT ---
-st.subheader("1. Skanowanie obiektu")
-uploaded_file = st.file_uploader("Zrób zdjęcie uszkodzonego przedmiotu", type=['jpg', 'png', 'jpeg'])
+# KROK 1: INPUT
+uploaded_file = st.file_uploader("Wgraj zdjęcie (Symulacja kamery)", type=['jpg', 'png'])
 
-if uploaded_file is not None:
-    # Wyświetlenie zdjęcia z zaokrąglonymi rogami (CSS trick w Streamlit nie działa bezpośrednio na img, ale ramka jest ok)
-    st.image(uploaded_file, caption='Podgląd z kamery', use_column_width=True)
+if uploaded_file:
+    st.image(uploaded_file, width=300)
     
-    # Symulacja wyboru AI
-    analyze_btn = st.button("✨ Uruchom Analizę Bielik AI")
-    
-    if analyze_btn:
-        with st.spinner('Przetwarzanie obrazu w chmurze...'):
-            # Symulacja opóźnienia i kroków procesu
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            steps = [
-                (10, "Normalizacja obrazu..."),
-                (30, "Wykrywanie obiektu (YOLOv8)..."),
-                (50, "Analiza uszkodzeń (Computer Vision)..."),
-                (70, "Pobieranie danych producenta (DPP API)..."),
-                (85, "Generowanie wyceny naprawy..."),
-                (100, "Gotowe!")
-            ]
-            
-            for percent, text in steps:
-                time.sleep(random.uniform(0.4, 0.8)) # Losowe opóźnienie dla realizmu
-                progress_bar.progress(percent)
-                status_text.text(text)
-            
-            time.sleep(0.5)
-            status_text.empty()
-            progress_bar.empty()
-
-        # --- KROK 2: WYNIKI ---
-        st.success("Analiza zakończona pomyślnie!")
+    if st.button("Uruchom Pipeline AI (Bielik + Vision)"):
         
-        # Karta Produktu (HTML Injection dla lepszego wyglądu)
-        st.markdown("""
-        <div class="status-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0; color:#1e293b;">iPhone 12</h2>
-                <span style="background:#dcfce7; color:#166534; padding:5px 12px; border-radius:20px; font-weight:bold; font-size:0.8em;">NAPRAWIALNY</span>
+        # Symulacja procesu w Data Center
+        with st.status("Łączenie z Beyond.pl DC2 (Poznań)...", expanded=True) as status:
+            time.sleep(0.5)
+            st.write("🔒 Uwierzytelnianie w strefie Rated 4...")
+            time.sleep(0.8)
+            st.write("⚡ Alokacja zasobów GPU NVIDIA H100...")
+            time.sleep(0.8)
+            st.write("🧠 Inferencja modelu Bielik-11B (Kontekst: Prawo UE)...")
+            time.sleep(1.0)
+            st.write("✅ Generowanie Paszportu Produktu...")
+            status.update(label="Analiza zakończona pomyślnie", state="complete", expanded=False)
+            
+        st.success("Dane zapisane w bezpiecznej chmurze.")
+
+        # KROK 2: WYNIK (Data Box)
+        st.markdown(f"""
+        <div class="data-box">
+            <h3 style="margin-top:0;">📱 iPhone 13 Pro (Sierra Blue)</h3>
+            <p style="font-size:0.9em; color:#64748b;">ID: PL-WAW-8842-DPP</p>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px;">
+                <div>
+                    <small>Diagnoza AI</small><br>
+                    <b>Uszkodzony Ekran</b>
+                </div>
+                <div>
+                    <small>Zalecenie GOZ</small><br>
+                    <b style="color:#059669;">Naprawa (Opłacalna)</b>
+                </div>
+                <div>
+                    <small>Szacowany Koszt</small><br>
+                    <b>450 PLN</b>
+                </div>
+                <div>
+                    <small>Wzrost Wartości</small><br>
+                    <b style="color:#059669;">+1650 PLN</b>
+                </div>
             </div>
-            <p style="color:#64748b; margin-top:5px;">Model A2403 • 64GB • Black</p>
-            <hr style="border-top: 1px solid #e2e8f0;">
-            <p><b>🔍 Diagnoza AI:</b> Wykryto mechaniczne uszkodzenie wyświetlacza (typ: pajączek). Ramka i tylna obudowa nienaruszone. Bateria: 84% kondycji.</p>
         </div>
         """, unsafe_allow_html=True)
 
-        # Metryki finansowe
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Koszt naprawy", "350 PLN")
-        with c2:
-            st.metric("Wartość po", "1600 PLN", "+1200 PLN")
-        with c3:
-            st.metric("Czas", "24h")
-
-        # --- KROK 3: PASZPORT CYFROWY (JSON) ---
-        with st.expander("🇪🇺 Paszport Cyfrowy Produktu (DPP)"):
-            st.info("Dane pobrane z centralnej bazy producenta.")
-            st.json({
-                "uuid": "550e8400-e29b-41d4-a716-446655440000",
-                "manufacturer": "Apple Inc.",
-                "origin": "Designed in California, Assembled in China",
-                "repairability_score": "6.0/10",
-                "materials": {
-                    "glass": "Front/Back",
-                    "aluminum": "Frame (Recycled 100%)",
-                    "cobalt": "Battery"
-                },
-                "lifecycle_events": [
-                    {"date": "2021-11-20", "type": "Activation"},
-                    {"date": "2024-02-14", "type": "Damage_Detected_AI"}
-                ]
-            })
-
-        # --- KROK 4: AKCJA ---
-        st.subheader("Co chcesz zrobić?")
+        # KROK 3: PDF I AKCJA
+        st.write("")
+        col_pdf, col_action = st.columns(2)
         
-        # Tabs
-        tab_repair, tab_sell = st.tabs(["🔧 Napraw Lokalnie", "💰 Sprzedaj na Części"])
+        with col_pdf:
+            pdf_data = create_pdf("iPhone 13 Pro", "PL-BEYOND-8842", "8/10", "2100")
+            st.download_button(
+                label="📄 Pobierz Paszport",
+                data=pdf_data,
+                file_name="paszport_beyond.pdf",
+                mime="application/pdf"
+            )
         
-        with tab_repair:
-            st.write("Rekomendowane serwisy w promieniu 5km:")
-            
-            # Dane do mapy (Przykładowe koordynaty - Warszawa)
-            map_data = pd.DataFrame({
-                'lat': [52.229676 + random.uniform(-0.01, 0.01) for _ in range(3)],
-                'lon': [21.012229 + random.uniform(-0.01, 0.01) for _ in range(3)]
-            })
-            st.map(map_data)
-            
-            st.button("Umów Kuriera (InPost) - 14.99 PLN", key="btn_courier")
+        with col_action:
+            st.button("🔧 Zleć Naprawę (B2B)")
 
-        with tab_sell:
-            st.markdown("""
-            <div class="status-card">
-                <h3>Oferta Błyskawiczna</h3>
-                <p>Firma <b>GreenRefurb Sp. z o.o.</b> oferuje:</p>
-                <div class="metric-value" style="color:#10b981;">420 PLN</div>
-                <p style="font-size:0.8em; color:#64748b;">Płatność natychmiastowa BLIK</p>
-            </div>
-            """, unsafe_allow_html=True)
-            st.button("Akceptuj Ofertę i Generuj Etykietę", key="btn_sell")
+# Footer
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align:center; font-size:0.75em; color:#94a3b8;">
+    Hostowano w: <b>{CLOUD_PROVIDER}</b><br>
+    Standard bezpieczeństwa: {SECURITY_STD} | Zasilanie: {ENERGY_SOURCE}<br>
+    &copy; 2024 GOZ.AI Sp. z o.o. (W organizacji)
+</div>
+""", unsafe_allow_html=True)
